@@ -60,6 +60,16 @@ nav.controls button:focus-visible,.cta a:focus-visible{outline:3px solid var(--g
 }
 .cta .primary{background:var(--gold);color:var(--navy-deep)}
 .cta .secondary{border:1px solid var(--gold);color:var(--gold-soft)}
+.zoom-btn{appearance:none;border:1px solid var(--gold);background:transparent;color:var(--gold-soft);font:700 1.05rem "Mulish",system-ui,sans-serif;padding:12px 22px;border-radius:30px;cursor:pointer;margin-top:6px}
+.zoom-btn:hover{background:var(--gold);color:var(--navy-deep)}
+.zoom-btn:focus-visible,.viewer-close:focus-visible{outline:3px solid var(--gold-soft);outline-offset:3px}
+.viewer{position:fixed;inset:0;z-index:50;background:var(--navy-deep);overflow-y:auto;-webkit-overflow-scrolling:touch;display:none}
+.viewer.open{display:block}
+.viewer-bar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:calc(12px + env(safe-area-inset-top,0px)) 18px 12px;background:var(--navy-deep);border-bottom:1px solid rgba(201,163,91,.4)}
+.viewer-bar p{margin:0;color:var(--muted);font-size:1rem}
+.viewer-close{appearance:none;border:0;background:var(--gold);color:var(--navy-deep);font:700 1.1rem "Mulish",system-ui,sans-serif;padding:12px 24px;border-radius:30px;cursor:pointer}
+.viewer-pages{padding:18px 10px calc(30px + env(safe-area-inset-bottom,0px))}
+.viewer-pages img{display:block;width:100%;max-width:1000px;height:auto;margin:0 auto 18px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 footer{color:var(--muted);font-size:.9rem;padding:0 16px 22px;text-align:center}
 @media (max-width:640px){.hint{font-size:.88rem} .stage{max-width:520px}}
 </style>
@@ -68,7 +78,7 @@ footer{color:var(--muted);font-size:.9rem;padding:0 16px 22px;text-align:center}
 <header>
   <h1>Preston Pointe</h1>
   <div class="rule" aria-hidden="true"><span>&#x269C;</span></div>
-  <p class="hint">Drag a page corner, tap the arrows, or use your keyboard arrow keys to turn pages.</p>
+  <p class="hint">Tap the arrows to turn pages. Tap “Enlarge pages” to read in large print.</p>
 </header>
 <main>
   <div class="stage">
@@ -79,7 +89,12 @@ footer{color:var(--muted);font-size:.9rem;padding:0 16px 22px;text-align:center}
     <span id="count" aria-live="polite">Cover</span>
     <button id="next" type="button" aria-label="Next page">&#8250;</button>
   </nav>
+  <button class="zoom-btn" id="zoom" type="button">Enlarge pages for easier reading</button>
 </main>
+<div class="viewer" id="viewer" role="dialog" aria-modal="true" aria-label="Enlarged brochure pages">
+  <div class="viewer-bar"><p>Scroll to read. Pinch or zoom for even larger text.</p><button class="viewer-close" id="closeViewer" type="button">Back to brochure</button></div>
+  <div class="viewer-pages" id="viewerPages"></div>
+</div>
 <div class="cta">
   <a class="primary" href="https://prestonpointe.com/schedule-a-tour/" target="_top">Schedule a Tour</a>
   <a class="secondary" href="tel:+19198733017" target="_top">Call (919) 873-3017</a>
@@ -127,7 +142,23 @@ function update(){
 book.on('flip', update); book.on('changeOrientation', update); book.on('init', update);
 prev.addEventListener('click', () => book.flipPrev());
 next.addEventListener('click', () => book.flipNext());
+const viewer=document.getElementById('viewer'), vp=document.getElementById('viewerPages'), zoomBtn=document.getElementById('zoom');
+function visiblePages(){
+  const i=book.getCurrentPageIndex();
+  if (book.getOrientation()==='portrait' || i===0) return [i];
+  if (i>=total-1 && total%2===0) return [total-1];
+  const a = i%2 ? i : i-1; return [a, a+1].filter(n=>n<total);
+}
+function openViewer(){
+  vp.innerHTML = visiblePages().map(n=>`<img src="${PAGES[n]}" alt="Brochure page ${n+1}">`).join('');
+  viewer.classList.add('open'); viewer.scrollTop=0; document.body.style.overflow='hidden';
+  document.getElementById('closeViewer').focus();
+}
+function closeViewer(){ viewer.classList.remove('open'); document.body.style.overflow=''; zoomBtn.focus(); }
+zoomBtn.addEventListener('click', openViewer);
+document.getElementById('closeViewer').addEventListener('click', closeViewer);
 document.addEventListener('keydown', e => {
+  if (viewer.classList.contains('open')) { if (e.key==='Escape') closeViewer(); return; }
   if (e.key === 'ArrowRight') book.flipNext();
   if (e.key === 'ArrowLeft') book.flipPrev();
 });
